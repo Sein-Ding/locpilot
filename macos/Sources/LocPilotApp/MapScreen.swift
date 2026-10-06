@@ -46,8 +46,10 @@ struct MapScreen: View {
                     .padding(.trailing, ControlsCluster.trailingInset)
             }
             .overlay(alignment: .bottomLeading) {
-                // 占位不显示，所以这里也不留下多余的空间（无定位时 overlay 自然为空）
-                CoordinateReadout().padding(.leading, 16).padding(.bottom, 14)
+                // 贴在系统「高德地图」归属标注后面（实测标注占 x 2.5–65pt、离底 0–13pt）
+                CoordinateReadout()
+                    .padding(.leading, CoordinateReadout.leadingInset)
+                    .padding(.bottom, CoordinateReadout.bottomInset)
             }
             .overlay(alignment: .top) {
                 if let message = state.lastMessage { MessagePill(text: message).padding(.top, 58) }
@@ -57,18 +59,28 @@ struct MapScreen: View {
     }
 }
 
-/// 左下角坐标读数：只在"确实有定位"时显示。
-/// 没有定位时**什么都不画** —— 之前用 "—" 占位，看起来就是地图左下角多了一根莫名其妙的横杠。
+/// 左下角坐标读数。
+///
+/// 两个约束都来自实测（截图量像素，因为 MapKit 的归属标注没有 API 可查）：
+/// 1. **位置**：接在系统「高德地图」标注之后 —— 标注占 x 2.5–65pt、离窗口底 0–13pt，
+///    所以读数从 68pt 起、离底 3pt，与标注同一行。
+/// 2. **颜色**：与标注一致 —— 半透明白（会随底图颜色微变）+ 极轻的暗描边，
+///    而不是此前的纯色/白色泛光。
+/// 没有定位时**什么都不画**（早期用 "—" 占位，看起来就是左下角多了一根横杠）。
 private struct CoordinateReadout: View {
+    /// 起点 = 标注宽度(≈65pt) + 3pt 间隙
+    static let leadingInset: CGFloat = 68
+    /// 与标注垂直居中对齐
+    static let bottomInset: CGFloat = 3
+
     @EnvironmentObject var state: AppState
 
     var body: some View {
         if let position = state.position {
             Text(AppState.format(lat: position.lat, lon: position.lon))
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.primary)
-                .shadow(color: .white.opacity(0.75), radius: 2, y: 1)
-                .padding(.horizontal, 2)
+                .foregroundStyle(.white.opacity(0.62))
+                .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
         }
     }
 }
