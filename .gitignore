@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+.pycache/
+.venv/
+venv/
+
+# LocPilot 运行期数据
+.locpilot/
+*.log
+
+# 验证产物
+docs/screenshot.png
+artifacts/
+
+# 构建产物
+.build/
+.build-*/
+macos/build/
+macos/.build/
+macos/.build-cache/
+*.icns
+
+# 工具缓存（当前磁盘上尚未出现，预防性）
+node_modules/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 系统
+.DS_Store
+
+# 本地开发用（测试、验收脚本、旧版网页界面、内部报告、npm 包装）：不随仓库分发
+tests/
+tools/
+web/
+package.json
+docs/engine-options.md
+macos/Sources/LocPilotTests/
+
+# 本机 Agent 认知层（AOCI）与项目 Agent 指令：与产品功能无关，不进仓库
+aoci.txt
+aoci.meta.txt
+aoci.code.txt
+.aoci/
+AGENTS.md
+
+# 机器相关：Codex 项目级 MCP 配置含本机绝对路径，不入库
+.codex/

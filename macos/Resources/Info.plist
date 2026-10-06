@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>LocPilot</string>
+    <key>CFBundleDisplayName</key>
+    <string>LocPilot</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.locpilot.desktop</string>
+    <key>CFBundleExecutable</key>
+    <string>LocPilot</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>GPL-3.0 · LocPilot</string>
+    <!-- 本地后端走 127.0.0.1，必须显式放行本地网络，否则 ATS 会拦掉 http 请求 -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+    <!-- 构建时写入仓库路径：开发模式下 .app 直接读仓库源码，改代码无需重新打包 -->
+    <key>LPRepositoryPath</key>
+    <string>__REPO_PATH__</string>
+</dict>
+</plist>
