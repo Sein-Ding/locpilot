@@ -28,6 +28,7 @@ struct TitlebarDragArea: NSViewRepresentable {
     private final class DragView: NSView {
         var onHoverChange: ((Bool) -> Void)?
         private var trackingArea: NSTrackingArea?
+        private var monitor: Any?
 
         /// 左上角红绿灯按钮的宽度：这片区域不接管事件，按钮才点得动。
         private let trafficLightWidth: CGFloat = 78
@@ -41,46 +42,40 @@ struct TitlebarDragArea: NSViewRepresentable {
         override func updateTrackingAreas() {
             super.updateTrackingAreas()
             if let trackingArea { removeTrackingArea(trackingArea) }
+            // 刻意不用 .inVisibleRect：SwiftUI 托管下这个视图的 visibleRect 会是**整个窗口**
+            // （实测 (0,-708,1180,760)，而 bounds 只有 52 高），有效跟踪区因此被放大到全窗，
+            // 悬停判定就跟条的实际位置对不上。用显式 bounds 矩形才准。
             let area = NSTrackingArea(rect: bounds,
-                                      options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                      options: [.mouseEnteredAndExited, .activeInKeyWindow, .enabledDuringMouseDrag],
                                       owner: self, userInfo: nil)
             addTrackingArea(area)
             trackingArea = area
-            Self.dumpGeometry(self, label: "updateTrackingAreas")
         }
 
-        // MARK: - 临时诊断（LOCPILOT_DEBUG_TOPBAR=1 时写日志，用于核对热区与红绿灯的真实坐标）
-
-        static func dumpGeometry(_ view: NSView, label: String) {
-            guard ProcessInfo.processInfo.environment["LOCPILOT_DEBUG_TOPBAR"] == "1" else { return }
-            guard let window = view.window else { return }
-            let inWindow = view.convert(view.bounds, to: nil)
-            var lines = ["[\(label)] 热区 view.bounds=\(view.bounds) 转窗口坐标=\(inWindow)"]
-            lines.append("  窗口 frame=\(window.frame) contentLayoutRect=\(window.contentLayoutRect)")
-            if let cv = window.contentView { lines.append("  contentView.bounds=\(cv.bounds)") }
-            for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
-                if let b = window.standardWindowButton(kind), let host = b.superview {
-                    let r = host.convert(b.frame, to: nil)
-                    lines.append("  红绿灯 \(kind.rawValue) 窗口坐标=\(r) 标题栏高=\(host.bounds.height) flipped=\(host.isFlipped)")
-                }
-            }
-            let text = lines.joined(separator: "\n") + "\n"
-            let path = "/tmp/locpilot_topbar.log"
-            if let handle = FileHandle(forWritingAtPath: path) {
-                handle.seekToEndOfFile(); handle.write(text.data(using: .utf8)!); handle.closeFile()
-            } else {
-                try? text.write(toFile: path, atomically: true, encoding: .utf8)
-            }
+        /// 鼠标移动时按真实坐标判定：trackingArea 只负责"进入/离开"，
+        /// 精确判定交给这里的几何计算，避免再受 AppKit 可见区域推算的影响。
+        private func updateHoverFromPointer() {
+            guard let window, window.isKeyWindow else { return }
+            let pointer = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+            onHoverChange?(bounds.contains(pointer))
         }
+
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { Self.dumpGeometry(self, label: "1s后") }
+            guard window != nil, monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in
+                self?.updateHoverFromPointer()
+                return event
+            }
+        }
+
+        deinit {
+            if let monitor { NSEvent.removeMonitor(monitor) }
         }
 
         override func mouseEntered(with event: NSEvent) {
-            onHoverChange?(true)
-            Self.dumpGeometry(self, label: "mouseEntered")
+            updateHoverFromPointer()
         }
         override func mouseExited(with event: NSEvent) { onHoverChange?(false) }
 

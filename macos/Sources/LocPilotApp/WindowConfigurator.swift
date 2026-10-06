@@ -25,6 +25,11 @@ final class WindowConfiguratorView: NSView {
             // 红绿灯默认紧贴左上角，比 Apple 地图更"顶"；整体下移一点更接近原生的视觉重心。
             Self.shiftTrafficLights(in: window)
             // AppKit 在窗口尺寸变化/进出全屏时会重新布局标题栏，把我们的偏移冲掉，所以跟着补一次。
+            // 窗口刚建时标题栏可能还没完成布局，稍后再校正+刷新一次；
+            // shiftTrafficLights 是基于"系统居中位置"重算的，重复调用幂等。
+            for delay in [0.3, 1.0] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { Self.shiftTrafficLights(in: window) }
+            }
             for name in [NSWindow.didResizeNotification, NSWindow.didEnterFullScreenNotification, NSWindow.didExitFullScreenNotification] {
                 NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { _ in
                     Self.shiftTrafficLights(in: window)
@@ -62,9 +67,14 @@ extension WindowConfiguratorView {
             let centeredY = (host.bounds.height - frame.height) / 2
             frame.origin.y = host.isFlipped ? centeredY + trafficLightDrop : centeredY - trafficLightDrop
             frame.origin.x += trafficLightInset
-            if abs(button.frame.origin.y - frame.origin.y) > 0.5 || abs(button.frame.origin.x - frame.origin.x) > 0.5 {
-                button.setFrameOrigin(frame.origin)
-            }
+            guard abs(button.frame.origin.y - frame.origin.y) > 0.5 || abs(button.frame.origin.x - frame.origin.x) > 0.5 else { continue }
+            button.setFrameOrigin(frame.origin)
+            // 关键：setFrameOrigin 只挪画面，**不会**跟着挪悬停判定区。
+            // 不刷新的话，指针移到按钮上不会出现 × − + 符号，反倒要移到按钮原来的位置才出
+            //（用户实测反馈的正是这个现象）。三处刷新都要做，缺一个都可能漏。
+            button.updateTrackingAreas()
+            host.updateTrackingAreas()
+            window.invalidateCursorRects(for: button)
         }
     }
 
