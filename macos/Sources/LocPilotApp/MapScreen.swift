@@ -79,7 +79,7 @@ private struct CoordinateReadout: View {
         if let position = state.position {
             Text(AppState.format(lat: position.lat, lon: position.lon))
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(.white.opacity(0.45))
                 .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
         }
     }
