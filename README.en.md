@@ -26,7 +26,7 @@ It has two layers, deliberately separated:
 * **Native macOS app** (SwiftUI + MapKit): the window holds three things — an Apple map, a control cluster in the top-right corner, and a coordinate readout in the bottom-left. Full-bleed and free of hard title-bar edges; controls use the system Liquid Glass material (older systems fall back to plain materials).
 * **Python backend** (launched by the app, or run standalone): the engine adapter layer that does the actual work, and it exposes an **HTTP/SSE API plus a CLI**. Multi-point routes, GPX playback, speed control, address search and history therefore live in the backend; the app only depends on its HTTP contract.
 
-![LocPilot native UI: click the map to teleport](docs/images/app.png)
+![LocPilot native UI: click the map to teleport](docs/images/app.png?v=1.0.1)
 
 *Screenshot: the native UI — the real Apple map, the glass control cluster in the top-right, the coordinate readout in the bottom-left, and the reverse-geocoded place name under the dropped pin. Captured with the built-in mock engine (no physical device attached).*
 

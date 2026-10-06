@@ -26,7 +26,7 @@ LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事
 * **原生 macOS App**（SwiftUI + MapKit）：界面只有三样东西 —— Apple 地图、右上控件簇、左下坐标读数。全面屏、无标题栏硬边，控件用系统 Liquid Glass 材质（旧系统自动回落材质）。
 * **Python 后端**（App 自动拉起，也能独立跑）：真正干活的定位引擎适配层，同时对外提供 **HTTP/SSE API 与 CLI**。所以多点路线、GPX 回放、速度控制、地址搜索、历史这些复杂能力都长在后端，App 只依赖它的 HTTP 契约。
 
-![LocPilot 原生界面：点击地图即传送](docs/images/app.png)
+![LocPilot 原生界面：点击地图即传送](docs/images/app.png?v=1.0.1)
 
 *截图：原生界面 —— Apple 地图本体、右上玻璃控件簇、左下坐标读数；落针后显示反查到的地名。此图为内置 mock 引擎演示，未连接真机。*
 
