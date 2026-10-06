@@ -259,6 +259,12 @@ LocPilot 以 **GPL-3.0** 发布：默认引擎 pymobiledevice3 为 GPL-3.0，本
 若改用 go-ios（MIT）引擎并移除 pymobiledevice3 适配层，可自行改为宽松许可。
 第三方归属见 [NOTICE.md](NOTICE.md)。
 
+## 12. 更新日志
+
+每个版本修了什么、加了什么，见 **[CHANGELOG.md](CHANGELOG.md)**；安装包与 SHA-256 见 [Releases](../../releases)。
+
+最近一版 **v1.0.1** 修掉了：窗口顶部悬停判定错位、红绿灯不显示 `× − +` 符号、首屏状态接口卡十几秒、无定位时左下角多出的横杠，并把系统控件外观切到新系统样式。
+
 ---
 
 **问题 / Bug / 建议**：请提 [Issue](../../issues)，这样别人也能搜到答案。

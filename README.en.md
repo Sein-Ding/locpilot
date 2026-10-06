@@ -257,6 +257,12 @@ LocPilot is released under **GPL-3.0**: the default engine pymobiledevice3 is GP
 Switching to the go-ios (MIT) engine and removing the pymobiledevice3 adapter would allow a permissive license.
 Third-party attribution is in [NOTICE.md](NOTICE.md).
 
+## 12. Changelog
+
+What each release fixed and added lives in **[CHANGELOG.md](CHANGELOG.md)** (Chinese); installers and SHA-256 are on [Releases](../../releases).
+
+**v1.0.1** fixed: misplaced hover detection at the window top, traffic lights not revealing `× − +` on hover, the first `/api/status` call blocking for ~14s, the stray dash in the bottom-left readout, and moved system controls to the current macOS appearance.
+
 ---
 
 **Questions / bugs / ideas**: please open an [Issue](../../issues) so others can find the answer too.
