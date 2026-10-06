@@ -9,8 +9,29 @@ import SwiftUI
 ///
 /// 每个控件都是独立的浮层（不是一个大盒子塞五个按钮），胶囊只用于成组动作。
 struct ControlsCluster: View {
+    /// 顶部内边距：让设备图标的**中心**与左上角红绿灯的中心在同一条水平线上。
+    ///
+    /// 推导（都是实测值，改任一处都要同步）：
+    ///   标题栏 32pt，系统把红绿灯垂直居中 → 中心距顶 16pt；
+    ///   我们为对齐 44pt 悬停条又下移 6pt → 红绿灯中心距顶 22pt；
+    ///   图标直径 42pt，顶部内边距固定 5pt → 图标中心距顶 5 + 42/2 = 26pt；
+    ///   红绿灯下移量与该中心线同步；悬停条高度 = 26 × 2 = 52pt，上下等长。
+    static let topInset: CGFloat = 5
+
+    /// 这条中心线到窗口顶部的距离：设备图标、红绿灯、悬停条三者共用。
+    static var centerLine: CGFloat { topInset + StatusButton.diameter / 2 }
+
+    /// 右侧内边距 = 顶部内边距，让图标"到上边"与"到右边"的间隙相等。
+    ///
+    /// 这是 iOS 图标贴屏幕圆角的对齐规则：间隙均匀时，圆形轮廓看起来才与窗口圆角"同心"。
+    /// （窗口圆角半径读不到 —— AppKit 把它交给窗口服务器渲染，NSThemeFrame.layer.cornerRadius 恒为 0，
+    ///  所以不按半径反推，直接用等间隙这条更稳的规则。）
+    static let trailingInset: CGFloat = topInset
+
     var body: some View {
-        VStack(spacing: 10) {
+        // 必须显式 .trailing：VStack 默认水平居中，42pt 的圆图标会"居中"在 84pt 的胶囊上方，
+        // 右边缘对不齐 —— 看起来就是图标没跟下面的胶囊在同一列上。
+        VStack(alignment: .trailing, spacing: 10) {
             StatusButton()
             MapActionCapsule()
             ZoomCapsule()
@@ -21,6 +42,10 @@ struct ControlsCluster: View {
 // MARK: - 设备状态（圆形）
 
 private struct StatusButton: View {
+    /// 图标直径。恢复原始尺寸；顶部内边距仍是 5pt，所以中心线降到 5 + 42/2 = 26pt，
+    /// 红绿灯与悬停条都按这条新中心线对齐。
+    static let diameter: CGFloat = 42
+
     @EnvironmentObject var state: AppState
 
     var body: some View {
@@ -31,8 +56,8 @@ private struct StatusButton: View {
             Image(systemName: "iphone")
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(state.statusColor)
-                .shadow(color: state.statusColor.opacity(0.9), radius: 8)
-                .frame(width: 42, height: 42)
+                .shadow(color: state.statusColor.opacity(0.9), radius: 7)
+                .frame(width: StatusButton.diameter, height: StatusButton.diameter)
         }
         .buttonStyle(.plain)
         .modifier(GlassChrome(shape: Circle()))

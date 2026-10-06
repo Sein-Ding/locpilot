@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 
 APP_NAME = "locpilot"
 APP_TITLE = "LocPilot"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 # --- 网络服务默认值 -------------------------------------------------------
 DEFAULT_HOST = "127.0.0.1"

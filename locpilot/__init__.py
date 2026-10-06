@@ -4,5 +4,5 @@
 libimobiledevice / go-ios / mock），界面交给本地 Web UI 与 CLI。
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __all__ = ["__version__"]

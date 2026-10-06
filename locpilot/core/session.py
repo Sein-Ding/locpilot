@@ -41,6 +41,9 @@ class Session:
     ) -> None:
         self.settings = dict(settings or config.resolve_settings())
         self.lock = threading.RLock()
+        # 最近一次成功构建的快照。读接口（/api/status）在写操作持锁时直接返回它，
+        # 避免被 connect() 的设备枚举堵住十几秒 —— 前端会表现为"启动卡住"。
+        self._snapshot_cache: Optional[dict] = None
         self.store = store if store is not None else Store()
         self.engine: Optional[Engine] = engine
         self.route: Optional[Route] = None
@@ -437,9 +440,23 @@ class Session:
         }
 
     def snapshot(self) -> dict:
-        with self.lock:
+        # 读接口绝不阻塞：写操作（connect/teleport）持锁时直接给上一份快照。
+        # 实测无设备时 /api/connect 的枚举要 14 秒，期间 /api/status 会一直等锁，
+        # App 启动看起来就像卡死（冒烟与端到端也因此误报超时）。
+        if not self.lock.acquire(timeout=0.2):
+            cached = self._snapshot_cache
+            if cached is not None:
+                return cached
+            self.lock.acquire()          # 首次调用还没有缓存，只能等
+        try:
+            return self._snapshot_locked()
+        finally:
+            self.lock.release()
+
+    def _snapshot_locked(self) -> dict:
+        if True:
             engine = self.engine
-            return {
+            snapshot = {
                 "app": {"name": config.APP_TITLE, "version": config.VERSION},
                 "runtime": self.runtime_info(),
                 "engine": {
@@ -469,6 +486,8 @@ class Session:
                 "tile_providers": config.TILE_PROVIDERS,
                 "logs": list(self.logs)[-30:],
             }
+            self._snapshot_cache = snapshot
+            return snapshot
 
     def shutdown(self) -> None:
         self.stop_ticker()

@@ -55,6 +55,15 @@ final class AppState: ObservableObject {
         center: CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737),
         latitudinalMeters: 8000, longitudinalMeters: 8000)
     @Published var showInstaller = false
+    /// 鼠标是否停在窗口顶部：用于浮现半透明标题栏提示。
+    @Published private(set) var titlebarHovered = false
+
+    /// 顶部悬停状态由拖拽热区回调驱动（进入快、离开稍慢，避免边缘抖动闪烁）。
+    func setTitlebarHovered(_ hovering: Bool) {
+        guard titlebarHovered != hovering else { return }
+        withAnimation(.easeOut(duration: hovering ? 0.15 : 0.25)) { titlebarHovered = hovering }
+    }
+
     /// 是否"跟随定位"：打开后，只要定位变化，镜头就自动跟过去（Apple 地图定位键的语义）。
     @Published private(set) var followsPosition = false
 
@@ -153,8 +162,9 @@ final class AppState: ObservableObject {
         // 例外：首次拿到位置时居中一次，让用户一打开就看到手机在哪。
         if !didInitialCenter, let pos = snapshot.position {
             didInitialCenter = true
-            camera = .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: pos.lat, longitude: pos.lon),
-                                                latitudinalMeters: 4000, longitudinalMeters: 4000))
+            moveCamera(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: pos.lat, longitude: pos.lon),
+                                          latitudinalMeters: 4000, longitudinalMeters: 4000),
+                       duration: 0.6)
         }
     }
 
@@ -279,17 +289,19 @@ final class AppState: ObservableObject {
 
     private func centerCamera(on position: LatLon, spanMeters: Double) {
         didInitialCenter = true
-        camera = .region(MKCoordinateRegion(
+        moveCamera(MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: position.lat, longitude: position.lon),
-            latitudinalMeters: spanMeters, longitudinalMeters: spanMeters))
+            latitudinalMeters: spanMeters, longitudinalMeters: spanMeters),
+                   duration: 0.45)
     }
 
     func focusOnPosition() {
         guard let position else { flash("还没有设定位置，点一下地图即可"); return }
         didInitialCenter = true
         let span = currentSpanMeters
-        camera = .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: position.lat, longitude: position.lon),
-                                            latitudinalMeters: max(span, 1500), longitudinalMeters: max(span, 1500)))
+        moveCamera(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: position.lat, longitude: position.lon),
+                                      latitudinalMeters: max(span, 1500), longitudinalMeters: max(span, 1500)),
+                   duration: 0.45)
     }
 
     /// 点击地图：先落针并显示地址，落稳后才下发定位。
@@ -337,9 +349,19 @@ final class AppState: ObservableObject {
     }
 
     /// 缩放以"用户当前看到的跨度"为基准：触控板缩放后再点按钮也符合预期。
+    /// 必须走 moveCamera：直接赋值相机是瞬移，放大缩小会"啪"地跳过去，很生硬。
     func zoom(factor: Double) {
         let span = min(max(visibleRegion.span.latitudeDelta * 111_000 * factor, 250), 600_000)
-        camera = .region(MKCoordinateRegion(center: visibleRegion.center, latitudinalMeters: span, longitudinalMeters: span))
+        moveCamera(MKCoordinateRegion(center: visibleRegion.center, latitudinalMeters: span, longitudinalMeters: span))
+    }
+
+    /// 相机统一入口：所有视角变化都带过渡，避免瞬移。
+    /// 用 .smooth 而不是弹簧：缩放带过冲会看起来像"弹了一下"，不像系统地图。
+    /// 默认 0.25s = 缩放按钮的手感（用户指定）。
+    private func moveCamera(_ target: MKCoordinateRegion, duration: Double = 0.25) {
+        withAnimation(.smooth(duration: duration)) {
+            camera = .region(target)
+        }
     }
 
     private var currentSpanMeters: Double { visibleRegion.span.latitudeDelta * 111_000 }

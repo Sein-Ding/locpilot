@@ -7,9 +7,9 @@
 [中文](README.md) | **English**
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-macOS%2026%2B-lightgrey.svg)
 ![Python](https://img.shields.io/badge/python-3.9%2B-3776ab.svg)
-![Status](https://img.shields.io/badge/status-v1.0.0-brightgreen.svg)
+![Status](https://img.shields.io/badge/status-v1.0.1-brightgreen.svg)
 
 **Download**: [⬇️ latest installer (Apple Silicon / arm64, ZIP)](../../releases/latest)
 
@@ -58,7 +58,7 @@ Comparable tools (commercial software such as iAnyGo) are mostly Windows/Electro
 
 ### Project status
 
-**v1.0.0 — feature complete**, with a native Apple Silicon (M-series) installer. Working today: the native app's main path (connect / teleport / clear / zoom), all four engine adapters, the persistent pymobiledevice3 worker, multi-point routes and GPX, the backend API and CLI. Known limitations are listed in [Section 7](#7-known-limitations-read-first).
+**v1.0.1 — feature complete**, with a native Apple Silicon (M-series) installer. Working today: the native app's main path (connect / teleport / clear / zoom), all four engine adapters, the persistent pymobiledevice3 worker, multi-point routes and GPX, the backend API and CLI. Known limitations are listed in [Section 7](#7-known-limitations-read-first).
 
 ---
 
@@ -84,9 +84,9 @@ Shortcuts: **⌘K** connect · **⌘⇧K** disconnect · **⌘⇧C** restore rea
 
 ### Option A — Download and run (recommended, no build)
 
-**Requirements: an Apple Silicon (M1 / M2 / M3 / M4 …) Mac running macOS 14 or later.**
+**Requirements: an Apple Silicon (M1 / M2 / M3 / M4 …) Mac running macOS 26 or later** — this build targets the macOS 26 SDK so the system Liquid Glass appearance is enabled (an older SDK makes every system control fall back to the legacy look).
 
-1. Open **[Releases](../../releases/latest)** and download `LocPilot-1.0.0-arm64.zip` (~470 KB)
+1. Open **[Releases](../../releases/latest)** and download `LocPilot-1.0.1-arm64.zip` (~470 KB)
 2. Unzip it and drag **LocPilot.app** into Applications
 3. **First launch**: this build is ad-hoc signed (not notarized), so Gatekeeper blocks the first double-click —
    right-click the app → **Open** → **Open** again; or run once:
@@ -98,7 +98,7 @@ Shortcuts: **⌘K** connect · **⌘⇧K** disconnect · **⌘⇧C** restore rea
 4. The engine is only needed to drive a **real** device: menu bar → *Engine → Install / Repair location engine…* (~40 MB, no sudo). Without it you can still explore the UI with the built-in mock device
 5. Connect the iPhone over USB, tap "Trust This Computer", enable Developer Mode, click the phone icon in the top-right, then **click anywhere on the map** — the location moves there once the pin lands
 
-> Verify the download: `shasum -a 256 LocPilot-1.0.0-arm64.zip` should match the SHA-256 shown on the Release page.
+> Verify the download: `shasum -a 256 LocPilot-1.0.1-arm64.zip` should match the SHA-256 shown on the Release page.
 
 ### Option B — Build from source
 
@@ -199,6 +199,9 @@ Key design decisions:
 ## 6. Build, Self-check & Packaging
 
 ```bash
+# Native layer (zero-dependency test runner: Command Line Tools ship no XCTest)
+swift run --package-path macos LocPilotTests
+
 # Build + bundle structure check + launch smoke + crash guard (any new crash report fails the run)
 bash macos/build.sh --smoke
 

@@ -7,9 +7,9 @@
 **中文** | [English](README.en.md)
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-macOS%2026%2B-lightgrey.svg)
 ![Python](https://img.shields.io/badge/python-3.9%2B-3776ab.svg)
-![Status](https://img.shields.io/badge/status-v1.0.0-brightgreen.svg)
+![Status](https://img.shields.io/badge/status-v1.0.1-brightgreen.svg)
 
 **下载**：[⬇️ 最新安装包（Apple Silicon / arm64，ZIP）](../../releases/latest)
 
@@ -58,7 +58,7 @@ LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事
 
 ### 项目状态
 
-**v1.0.0：功能已全部完成**，并提供 Apple Silicon（M 系列）原生安装包。原生 App 主链路（连接 / 传送 / 恢复 / 缩放）、四个引擎适配器、pymobiledevice3 常驻 worker、多点路线与 GPX、后端 API 与 CLI 均已跑通。已知限制见 [第 7 节](#7-已知限制务必先读)。
+**v1.0.1：功能已全部完成**，并提供 Apple Silicon（M 系列）原生安装包。原生 App 主链路（连接 / 传送 / 恢复 / 缩放）、四个引擎适配器、pymobiledevice3 常驻 worker、多点路线与 GPX、后端 API 与 CLI 均已跑通。已知限制见 [第 7 节](#7-已知限制务必先读)。
 
 ---
 
@@ -84,9 +84,9 @@ LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事
 
 ### 方式 A：直接下载使用（推荐，免构建）
 
-**要求：Apple Silicon（M1 / M2 / M3 / M4 …）Mac + macOS 14 或更高。**
+**要求：Apple Silicon（M1 / M2 / M3 / M4 …）Mac + macOS 26 或更高** —— 本版以 macOS 26 SDK 构建，才能启用系统 Liquid Glass 新外观（用更低 SDK 构建会整体回落到旧版控件样式）。
 
-1. 打开 **[Releases](../../releases/latest)**，下载 `LocPilot-1.0.0-arm64.zip`（约 470 KB）
+1. 打开 **[Releases](../../releases/latest)**，下载 `LocPilot-1.0.1-arm64.zip`（约 470 KB）
 2. 解压，把 **LocPilot.app** 拖进「应用程序」
 3. **首次打开**：本版为 ad-hoc 签名（未做 Apple 公证），双击会被 Gatekeeper 拦一次 ——
    右键点 App →「打开」→ 弹窗里再点「打开」；或执行一次：
@@ -100,7 +100,7 @@ LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事
 5. USB 连上 iPhone → 手机上点「信任此电脑」并开启开发者模式 → 点右上角手机图标连接 →
    **在地图上点一下**，大头针落下后定位即改到那里
 
-> 包完整性校验：`shasum -a 256 LocPilot-1.0.0-arm64.zip`，结果应与 Release 页里的 SHA-256 一致。
+> 包完整性校验：`shasum -a 256 LocPilot-1.0.1-arm64.zip`，结果应与 Release 页里的 SHA-256 一致。
 
 ### 方式 B：从源码构建
 
@@ -201,6 +201,9 @@ docs/images/                 README 用的界面截图
 ## 6. 构建、自检与打包
 
 ```bash
+# 原生层（零依赖测试运行器：Command Line Tools 没有 XCTest）
+swift run --package-path macos LocPilotTests
+
 # 构建 + 打包结构自检 + 启动冒烟 + 崩溃守卫（新增崩溃报告即失败）
 bash macos/build.sh --smoke
 

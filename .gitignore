@@ -36,7 +36,6 @@ tools/
 web/
 package.json
 docs/engine-options.md
-macos/Sources/LocPilotTests/
 
 # 本机 Agent 认知层（AOCI）与项目 Agent 指令：与产品功能无关，不进仓库
 aoci.txt
