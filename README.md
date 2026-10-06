@@ -17,50 +17,31 @@
 
 ## 项目介绍
 
-### 它是什么
+LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事：USB 连上手机，点地图任意位置，定位就过去了 —— **不需要越狱，也不需要在手机上装任何东西**。
 
-LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事：USB 连上手机，点地图任意位置，设备定位就过去了 —— **不需要越狱，也不需要在手机上装任何东西**。
+界面用系统框架（SwiftUI + MapKit，即 Apple 地图本体），定位能力交给成熟开源引擎 —— **换引擎不用动界面，改界面不用动引擎**。
 
-它由两层组成，职责刻意分开：
-
-* **原生 macOS App**（SwiftUI + MapKit）：界面只有三样东西 —— Apple 地图、右上控件簇、左下坐标读数。全面屏、无标题栏硬边，控件用系统 Liquid Glass 材质（旧系统自动回落材质）。
-* **Python 后端**（App 自动拉起，也能独立跑）：真正干活的定位引擎适配层，同时对外提供 **HTTP/SSE API 与 CLI**。所以多点路线、GPX 回放、速度控制、地址搜索、历史这些复杂能力都长在后端，App 只依赖它的 HTTP 契约。
+* **原生 macOS App**：界面只有三样东西 —— 地图、右上控件簇、左下坐标读数。全面屏，控件用系统 Liquid Glass 材质。
+* **Python 后端**（App 自动拉起，也能独立跑）：定位引擎适配层，同时对外提供 **HTTP/SSE API 与 CLI** —— 多点路线、GPX 回放、地址搜索、历史都长在后端。
 
 ![LocPilot 原生界面：点击地图即传送](docs/images/app.png?v=1.0.1)
 
-*截图：原生界面 —— Apple 地图本体、右上玻璃控件簇、左下坐标读数；落针后显示反查到的地名。此图为内置 mock 引擎演示，未连接真机。*
-
-### 为什么是原生的
-
-同类工具（iAnyGo 等商业软件）大多是 Windows / Electron 形态：自带运行时、自带地图瓦片、界面与引擎焊死在一起。LocPilot 反着做 —— 界面用系统框架，地图用 Apple 地图本体（中国区即高德数据源），定位能力交给成熟开源引擎：**换引擎不用动界面，改界面不用动引擎**。
+*截图：Apple 地图本体、右上玻璃控件簇、左下坐标读数；落针后显示反查到的地名。*
 
 ### 核心特性
 
 | 特性 | 说明 |
 |------|------|
-| 原生界面 | Apple 地图本体 + **系统原生手势**：触控板**双指拖动**平移、**双指捏合**缩放，手感与 macOS「地图」App 完全一致；深/浅色自动跟随、系统玻璃材质控件、全面屏无边框窗口 |
-| 点击即传送 | 唯一交互。右上控件簇 = 连接状态 / 回到当前位置 / 恢复真实定位 / 缩放；快捷键 **⌘K** 连接 · **⌘⇧K** 断开 · **⌘⇧C** 恢复真实定位 |
+| 原生界面 | Apple 地图 + 系统手势（双指平移 / 捏合），与 macOS「地图」手感一致；深浅色自动跟随 |
+| 点击即传送 | 唯一交互。右上控件簇 = 连接状态 / 跟随定位 / 恢复真实定位 / 缩放；**⌘K** 连接 · **⌘⇧K** 断开 · **⌘⇧C** 恢复 |
 | 引擎可插拔 | pymobiledevice3（默认）· libimobiledevice（仅 iOS ≤16）· go-ios · mock，按设备与系统版本自动选择 |
-| 免 sudo 隧道 | iOS 17+ 走 RemoteXPC/DTX，macOS 上默认自动建立隧道、普通用户权限即可（只有持久/共享隧道才要 root） |
-| 后端 API + CLI | 与 App 共用同一个 Session：单点传送、多点路线、GPX 导入导出、速度与循环模式、地址搜索、历史 |
-| 不依赖 Xcode | SwiftPM 命令行构建（`bash macos/build.sh`），只装 Command Line Tools 也能产出 `LocPilot.app` |
-| 自带体检 | 构建脚本内置打包结构自检、启动冒烟与崩溃守卫；无 iPhone 时可用 mock 引擎跑通全流程 |
+| 免 sudo 隧道 | iOS 17+ 走 RemoteXPC/DTX，默认自动建立隧道、普通用户权限即可 |
+| 后端 API + CLI | 与 App 共用同一个 Session：单点传送、多点路线、GPX 导入导出、速度与循环、地址搜索、历史 |
+| 不依赖 Xcode | `bash macos/build.sh` 即可产出 `LocPilot.app`，只装 Command Line Tools 也行 |
 
-### 技术栈
+**技术栈**：Swift 5.9 + SwiftUI + MapKit + Liquid Glass（SwiftPM：LocPilotKit / LocPilotApp）· 后端 Python ≥3.9，运行期只用标准库 · REST + SSE · 引擎 pymobiledevice3 / libimobiledevice / go-ios / mock · 地理 MapKit / OSRM / Nominatim
 
-| 层 | 技术 |
-|----|------|
-| 原生 App | Swift 5.9 + SwiftUI + MapKit + Liquid Glass；SwiftPM 两个 target（LocPilotKit / LocPilotApp） |
-| 后端 | Python ≥3.9，运行期只用标准库；引擎依赖按需装进仓库内 `.venv` |
-| 通信 | REST + SSE（`/api/events`），事件流驱动界面状态 |
-| 定位引擎 | pymobiledevice3 · libimobiledevice · go-ios · mock |
-| 地图与地理 | MapKit · OSRM 路线规划 · Nominatim 地址检索 |
-
-### 项目状态
-
-**v1.0.1：功能已全部完成**，并提供 Apple Silicon（M 系列）原生安装包。原生 App 主链路（连接 / 传送 / 恢复 / 缩放）、四个引擎适配器、pymobiledevice3 常驻 worker、多点路线与 GPX、后端 API 与 CLI 均已跑通。已知限制见 [第 7 节](#7-已知限制务必先读)。
-
----
+**状态**：**v1.0.1** 功能已全部完成，提供 Apple Silicon（M 系列）原生安装包；已知限制见 [第 7 节](#7-已知限制务必先读)。
 
 ## 1. 界面
 

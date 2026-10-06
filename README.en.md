@@ -17,50 +17,31 @@
 
 ## Overview
 
-### What it is
+LocPilot turns "where is my iPhone right now" into a single click on a map: plug in the phone over USB, click anywhere, and the device location moves there — **no jailbreak, nothing installed on the phone**.
 
-LocPilot turns "where is my iPhone right now" into a single click on a map: connect the phone over USB, click anywhere on the map, and the device location moves there — **no jailbreak, and nothing to install on the phone**.
+The UI uses system frameworks (SwiftUI + MapKit, i.e. Apple Maps itself) while the location work is delegated to mature open-source engines — **swap the engine without touching the UI, change the UI without touching the engine**.
 
-It has two layers, deliberately separated:
-
-* **Native macOS app** (SwiftUI + MapKit): the window holds three things — an Apple map, a control cluster in the top-right corner, and a coordinate readout in the bottom-left. Full-bleed and free of hard title-bar edges; controls use the system Liquid Glass material (older systems fall back to plain materials).
-* **Python backend** (launched by the app, or run standalone): the engine adapter layer that does the actual work, and it exposes an **HTTP/SSE API plus a CLI**. Multi-point routes, GPX playback, speed control, address search and history therefore live in the backend; the app only depends on its HTTP contract.
+* **Native macOS app**: the window holds exactly three things — the map, a control cluster top-right, a coordinate readout bottom-left. Full-bleed, with system Liquid Glass controls.
+* **Python backend** (launched by the app, also runnable standalone): the engine adapter layer, exposing both an **HTTP/SSE API and a CLI** — multi-point routes, GPX playback, address search and history all live in the backend.
 
 ![LocPilot native UI: click the map to teleport](docs/images/app.png?v=1.0.1)
 
-*Screenshot: the native UI — the real Apple map, the glass control cluster in the top-right, the coordinate readout in the bottom-left, and the reverse-geocoded place name under the dropped pin. Captured with the built-in mock engine (no physical device attached).*
-
-### Why native
-
-Comparable tools (commercial software such as iAnyGo) are mostly Windows/Electron apps: they bundle a runtime, bundle map tiles, and weld the UI to the engine. LocPilot goes the other way — system frameworks for the UI, the real Apple map as the canvas (AMap data in China), and proven open-source engines for location spoofing: **swapping the engine does not touch the UI, and changing the UI does not touch the engine.**
+*Screenshot: Apple Maps itself, glass control cluster top-right, coordinate readout bottom-left; the pin shows the reverse-geocoded place name.*
 
 ### Key features
 
 | Feature | Description |
-|---------|-------------|
-| Native UI | The real Apple map with **native system gestures**: two-finger drag to pan and pinch to zoom on the trackpad, exactly like the macOS Maps app; automatic light/dark, glass-material controls, full-bleed borderless window |
-| Click to teleport | The only interaction. The top-right cluster = connection status / return to current position / restore real location / zoom; shortcuts **⌘K** connect · **⌘⇧K** disconnect · **⌘⇧C** restore real location |
-| Pluggable engines | pymobiledevice3 (default) · libimobiledevice (iOS ≤16 only) · go-ios · mock, selected automatically from the device and its iOS version |
-| Sudo-free tunnel | iOS 17+ uses RemoteXPC/DTX; on macOS the tunnel is established automatically with normal user privileges (only persistent/shared tunnels need root) |
-| Backend API + CLI | Share one Session with the app: single-point teleport, multi-point routes, GPX import/export, speed and loop modes, address search, history |
-| No Xcode required | Built with SwiftPM from the command line (`bash macos/build.sh`); Command Line Tools alone are enough to produce `LocPilot.app` |
-| Built-in checks | The build script runs a bundle structure check, a launch smoke test and a crash guard; the mock engine walks the whole flow on a machine with no iPhone |
+|------|------|
+| Native UI | Apple Maps + system gestures (two-finger pan / pinch), identical to the macOS Maps app; light/dark follows the system |
+| Click to teleport | The only interaction. Top-right cluster = connection status / follow location / restore real GPS / zoom; **⌘K** connect · **⌘⇧K** disconnect · **⌘⇧C** restore |
+| Pluggable engines | pymobiledevice3 (default) · libimobiledevice (iOS ≤16 only) · go-ios · mock, picked automatically per device and OS version |
+| No-sudo tunnel | iOS 17+ uses RemoteXPC/DTX; the tunnel is established automatically as a normal user |
+| Backend API + CLI | Shares one Session with the app: single teleport, multi-point routes, GPX import/export, speed and loop modes, address search, history |
+| No Xcode required | `bash macos/build.sh` produces `LocPilot.app` with Command Line Tools alone |
 
-### Tech stack
+**Stack**: Swift 5.9 + SwiftUI + MapKit + Liquid Glass (SwiftPM: LocPilotKit / LocPilotApp) · backend Python ≥3.9, standard library only at runtime · REST + SSE · engines pymobiledevice3 / libimobiledevice / go-ios / mock · geo MapKit / OSRM / Nominatim
 
-| Layer | Technology |
-|-------|------------|
-| Native app | Swift 5.9 + SwiftUI + MapKit + Liquid Glass; SwiftPM with two targets (LocPilotKit / LocPilotApp) |
-| Backend | Python ≥3.9, standard library only at runtime; engine dependencies go into a repo-local `.venv` on demand |
-| Transport | REST + SSE (`/api/events`); the event stream drives UI state |
-| Location engines | pymobiledevice3 · libimobiledevice · go-ios · mock |
-| Maps & geo | MapKit · OSRM routing · Nominatim search |
-
-### Project status
-
-**v1.0.1 — feature complete**, with a native Apple Silicon (M-series) installer. Working today: the native app's main path (connect / teleport / clear / zoom), all four engine adapters, the persistent pymobiledevice3 worker, multi-point routes and GPX, the backend API and CLI. Known limitations are listed in [Section 7](#7-known-limitations-read-first).
-
----
+**Status**: **v1.0.1** is feature complete, with a native Apple Silicon installer. Known limits: [section 7](#7-known-limits-read-first).
 
 ## 1. Interface
 
