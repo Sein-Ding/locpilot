@@ -9,7 +9,7 @@
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS%2026%2B-lightgrey.svg)
 ![Python](https://img.shields.io/badge/python-3.9%2B-3776ab.svg)
-![Status](https://img.shields.io/badge/status-v1.0.1-brightgreen.svg)
+![Status](https://img.shields.io/badge/status-v1.0.2-brightgreen.svg)
 
 **Download**: [⬇️ latest installer (Apple Silicon / arm64, ZIP)](../../releases/latest)
 
@@ -24,7 +24,7 @@ The UI uses system frameworks (SwiftUI + MapKit, i.e. Apple Maps itself) while t
 * **Native macOS app**: the window holds exactly three things — the map, a control cluster top-right, a coordinate readout bottom-left. Full-bleed, with system Liquid Glass controls.
 * **Python backend** (launched by the app, also runnable standalone): the engine adapter layer, exposing both an **HTTP/SSE API and a CLI** — multi-point routes, GPX playback, address search and history all live in the backend.
 
-![LocPilot native UI: click the map to teleport](docs/images/app.png?v=1.0.1)
+![LocPilot native UI: click the map to teleport](docs/images/app.png?v=1.0.2)
 
 *Screenshot: Apple Maps itself, glass control cluster top-right, coordinate readout bottom-left; the pin shows the reverse-geocoded place name.*
 
@@ -41,7 +41,7 @@ The UI uses system frameworks (SwiftUI + MapKit, i.e. Apple Maps itself) while t
 
 **Stack**: Swift 5.9 + SwiftUI + MapKit + Liquid Glass (SwiftPM: LocPilotKit / LocPilotApp) · backend Python ≥3.9, standard library only at runtime · REST + SSE · engines pymobiledevice3 / libimobiledevice / go-ios / mock · geo MapKit / OSRM / Nominatim
 
-**Status**: **v1.0.1** is feature complete, with a native Apple Silicon installer. Known limits: [section 7](#7-known-limits-read-first).
+**Status**: **v1.0.2** is feature complete, with a native Apple Silicon installer. Known limits: [section 7](#7-known-limits-read-first).
 
 ## 1. Interface
 
@@ -67,7 +67,7 @@ Shortcuts: **⌘K** connect · **⌘⇧K** disconnect · **⌘⇧C** restore rea
 
 **Requirements: an Apple Silicon (M1 / M2 / M3 / M4 …) Mac running macOS 26 or later** — this build targets the macOS 26 SDK so the system Liquid Glass appearance is enabled (an older SDK makes every system control fall back to the legacy look).
 
-1. Open **[Releases](../../releases/latest)** and download `LocPilot-1.0.1-arm64.zip` (~470 KB)
+1. Open **[Releases](../../releases/latest)** and download `LocPilot-1.0.2-arm64.zip` (~470 KB)
 2. Unzip it and drag **LocPilot.app** into Applications
 3. **First launch**: this build is ad-hoc signed (not notarized), so Gatekeeper blocks the first double-click —
    right-click the app → **Open** → **Open** again; or run once:
@@ -79,7 +79,7 @@ Shortcuts: **⌘K** connect · **⌘⇧K** disconnect · **⌘⇧C** restore rea
 4. The engine is only needed to drive a **real** device: menu bar → *Engine → Install / Repair location engine…* (~40 MB, no sudo). Without it you can still explore the UI with the built-in mock device
 5. Connect the iPhone over USB, tap "Trust This Computer", enable Developer Mode, click the phone icon in the top-right, then **click anywhere on the map** — the location moves there once the pin lands
 
-> Verify the download: `shasum -a 256 LocPilot-1.0.1-arm64.zip` should match the SHA-256 shown on the Release page.
+> Verify the download: `shasum -a 256 LocPilot-1.0.2-arm64.zip` should match the SHA-256 shown on the Release page.
 
 ### Option B — Build from source
 

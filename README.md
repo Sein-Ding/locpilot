@@ -9,7 +9,7 @@
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS%2026%2B-lightgrey.svg)
 ![Python](https://img.shields.io/badge/python-3.9%2B-3776ab.svg)
-![Status](https://img.shields.io/badge/status-v1.0.1-brightgreen.svg)
+![Status](https://img.shields.io/badge/status-v1.0.2-brightgreen.svg)
 
 **下载**：[⬇️ 最新安装包（Apple Silicon / arm64，ZIP）](../../releases/latest)
 
@@ -24,7 +24,7 @@ LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事
 * **原生 macOS App**：界面只有三样东西 —— 地图、右上控件簇、左下坐标读数。全面屏，控件用系统 Liquid Glass 材质。
 * **Python 后端**（App 自动拉起，也能独立跑）：定位引擎适配层，同时对外提供 **HTTP/SSE API 与 CLI** —— 多点路线、GPX 回放、地址搜索、历史都长在后端。
 
-![LocPilot 原生界面：点击地图即传送](docs/images/app.png?v=1.0.1)
+![LocPilot 原生界面：点击地图即传送](docs/images/app.png?v=1.0.2)
 
 *截图：Apple 地图本体、右上玻璃控件簇、左下坐标读数；落针后显示反查到的地名。*
 
@@ -41,7 +41,7 @@ LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事
 
 **技术栈**：Swift 5.9 + SwiftUI + MapKit + Liquid Glass（SwiftPM：LocPilotKit / LocPilotApp）· 后端 Python ≥3.9，运行期只用标准库 · REST + SSE · 引擎 pymobiledevice3 / libimobiledevice / go-ios / mock · 地理 MapKit / OSRM / Nominatim
 
-**状态**：**v1.0.1** 功能已全部完成，提供 Apple Silicon（M 系列）原生安装包；已知限制见 [第 7 节](#7-已知限制务必先读)。
+**状态**：**v1.0.2** 功能已全部完成，提供 Apple Silicon（M 系列）原生安装包；已知限制见 [第 7 节](#7-已知限制务必先读)。
 
 ## 1. 界面
 
@@ -67,7 +67,7 @@ LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事
 
 **要求：Apple Silicon（M1 / M2 / M3 / M4 …）Mac + macOS 26 或更高** —— 本版以 macOS 26 SDK 构建，才能启用系统 Liquid Glass 新外观（用更低 SDK 构建会整体回落到旧版控件样式）。
 
-1. 打开 **[Releases](../../releases/latest)**，下载 `LocPilot-1.0.1-arm64.zip`（约 470 KB）
+1. 打开 **[Releases](../../releases/latest)**，下载 `LocPilot-1.0.2-arm64.zip`（约 470 KB）
 2. 解压，把 **LocPilot.app** 拖进「应用程序」
 3. **首次打开**：本版为 ad-hoc 签名（未做 Apple 公证），双击会被 Gatekeeper 拦一次 ——
    右键点 App →「打开」→ 弹窗里再点「打开」；或执行一次：
@@ -81,7 +81,7 @@ LocPilot 把「我这台 iPhone 现在在哪」变成地图上随手一点的事
 5. USB 连上 iPhone → 手机上点「信任此电脑」并开启开发者模式 → 点右上角手机图标连接 →
    **在地图上点一下**，大头针落下后定位即改到那里
 
-> 包完整性校验：`shasum -a 256 LocPilot-1.0.1-arm64.zip`，结果应与 Release 页里的 SHA-256 一致。
+> 包完整性校验：`shasum -a 256 LocPilot-1.0.2-arm64.zip`，结果应与 Release 页里的 SHA-256 一致。
 
 ### 方式 B：从源码构建
 
