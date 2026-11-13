@@ -343,3 +343,25 @@ frozen=True
 - 引擎选型与 Windows 可行性（证据、错误码表、探针）：[docs/windows-engine.md](../docs/windows-engine.md)
 - Windows 探针用法：windows/probe/README.md
 - macOS 构建：macos/build.sh（对照理解打包/冒烟结构）
+
+## 实测记录（2026-11-13，真实 Windows 机器）
+
+在 **Windows 11（10.0.26300）+ Python 3.12.10 (64-bit)** 上从零构建并验证：
+
+```text
+$ git clone https://github.com/Sein-Ding/locpilot.git C:\Users\Xiran\locpilot-win
+$ powershell -NoProfile -ExecutionPolicy Bypass -File windows\build.ps1
+...
+$ .\windows\dist\LocPilot.exe --selftest      # EXIT=0，75.4 MB onefile
+backend=ok
+ui=ok
+port=2144
+home=C:\Users\<用户>\AppData\Local\Temp\locpilot-selftest-...
+web_dir=C:\Users\<用户>\AppData\Local\Temp\_MEI0000ba3c2\web   ← UI 来自包内
+assets=ok                                        ← js/app.js / vendor/leaflet.js / styles.css 均 200
+python=3.12.10
+frozen=True
+```
+
+结论：**冻结包在 Windows 上可启动、后端就绪、静态 UI 与资源可从包内正常提供**（W1/W5/W6/W9 已实测）。
+仍未验证：真机定位链路（W2/W3/W4/W10/W11）—— 需要 iPhone 连到 Windows 机器上。
