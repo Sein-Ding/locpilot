@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>LocPilot</title>
+<!-- 全部资源为仓库内本地文件：不引用任何 CDN，离线可用 -->
+<link rel="stylesheet" href="./vendor/leaflet.css">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div id="app">
+  <!-- 全屏地图：点击任意位置 = 改设备定位（后端只认 WGS-84，显示层负责 GCJ-02 纠偏） -->
+  <div id="map" role="application" aria-label="地图：点击任意位置修改设备定位"></div>
+
+  <!-- 右上控件簇，分组对齐 macOS 版：设备状态（圆） / 跟随+恢复真实定位（胶囊） / 缩放（胶囊） -->
+  <div id="map-controls" class="controls">
+    <button id="device-btn" class="device-btn glass" type="button"
+            aria-haspopup="dialog" aria-expanded="false" aria-label="设备状态"
+            title="设备状态" data-testid="device-btn">
+      <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><rect x="7" y="2.4" width="10" height="19.2" rx="2.7"></rect><path d="M10.6 5.1h2.8"></path><path d="M12 18.3h.01"></path></svg>
+      <span class="device-dot" aria-hidden="true"></span>
+    </button>
+
+    <div class="capsule glass">
+      <button id="follow-btn" class="dimmed" type="button" aria-label="跟随定位"
+              title="跟随定位：镜头随定位自动移动" data-testid="follow-btn">
+        <svg viewBox="0 0 24 24" class="icon fill" aria-hidden="true"><path d="M12 2.6 L19.5 20.9 L12 16.7 L4.5 20.9 Z" transform="rotate(45 12 12)"></path></svg>
+      </button>
+      <div class="ctrl-sep" aria-hidden="true"></div>
+      <button id="clear-btn" class="danger" type="button" aria-label="恢复真实定位"
+              title="恢复真实定位" data-testid="clear-btn">
+        <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"></path><path d="M21 3l-6 6"></path><path d="M15 3h6v6"></path></svg>
+      </button>
+    </div>
+
+    <div class="capsule glass">
+      <button id="zoom-in" type="button" aria-label="放大" title="放大" data-testid="zoom-in">
+        <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 6v12M6 12h12"></path></svg>
+      </button>
+      <div class="ctrl-sep" aria-hidden="true"></div>
+      <button id="zoom-out" type="button" aria-label="缩小" title="缩小" data-testid="zoom-out">
+        <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M6 12h12"></path></svg>
+      </button>
+    </div>
+
+    <!-- 设备弹框：一行状态 + 连接/断开；错误原因只在这里出现，不打扰主界面 -->
+    <div id="device-popover" class="popover glass" role="dialog" aria-label="设备连接" hidden data-testid="device-popover">
+      <div class="popover-row">
+        <span id="popover-dot" class="status-dot" aria-hidden="true"></span>
+        <span id="popover-title" class="popover-title" data-testid="popover-title">设备未连接</span>
+        <span id="popover-spinner" class="spinner" hidden aria-hidden="true"></span>
+        <button id="popover-action" class="popover-action" type="button" data-testid="popover-action">连接</button>
+      </div>
+      <p id="popover-error" class="popover-error" hidden data-testid="popover-error"></p>
+    </div>
+  </div>
+
+  <!-- 左下角：归属标注与坐标读数同一行；没有定位时读数完全不出现（不留占位符） -->
+  <div id="readout-row">
+    <span id="attribution" data-testid="attribution"></span>
+    <span id="readout" class="mono" data-testid="readout" hidden></span>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite" hidden data-testid="toast"></div>
+  <div id="map-error" class="map-error" hidden>地图库缺失（./vendor/leaflet.js 未找到）。连接与定位接口仍可用。</div>
+</div>
+<script src="./vendor/leaflet.js"></script>
+<script src="./js/geo.js"></script>
+<script src="./js/model.js"></script>
+<script src="./js/api.js"></script>
+<script src="./js/pin.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>

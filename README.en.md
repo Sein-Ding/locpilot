@@ -13,6 +13,8 @@
 
 **Download**: [⬇️ latest installer (Apple Silicon / arm64, ZIP)](../../releases/latest)
 
+> **Windows build**: source is ready in [`windows/`](windows/README.md) (pywebview shell + in-process pymobiledevice3 + AMap-tile UI, sharing the same Python backend). Build it on Windows with `powershell -File windows\build.ps1`; details in [windows/README.md](windows/README.md).
+
 > ⚠️ **Compliance notice**: this tool changes the **system-wide** location of a device. Use it only for your own testing, demos and development debugging. Do not use it to cheat, to bypass risk controls, or for any purpose that violates terms of service or applicable law.
 
 ## Overview

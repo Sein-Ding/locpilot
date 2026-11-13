@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -26,6 +27,13 @@ import traceback
 from contextlib import AsyncExitStack
 
 PROTOCOL_VERSION = 1
+
+
+def _inproc() -> bool:
+    """与 engine/pmd3.inproc_enabled() 同一判据（此处避免循环导入，故重复实现）。"""
+    if os.environ.get("LOCPILOT_PMD3_INPROC") == "1":
+        return True
+    return bool(getattr(sys, "frozen", False)) and os.name == "nt"
 
 
 class Session:
@@ -39,6 +47,7 @@ class Session:
         self.product_version = None
         self.udid = None
         self.detail = {}
+        self._tunnel = None      # 进程内模式持有的 UserspaceRsdTunnel（可关闭句柄）
 
     async def open(self, udid=None, rsd=None, tunnel=None, mount=False) -> dict:
         await self.close()
@@ -49,7 +58,9 @@ class Session:
         self.udid = getattr(self.lockdown, "identifier", None) or udid
         major = self._major(self.product_version)
 
-        if mount:
+        # 进程内模式：没有 pymobiledevice3 命令行，挂载要改用库调用；
+        # 且 iOS 17.4+（尤其 iOS 27 的 Cryptex1）必须经 RSD 挂载，所以顺序改成"先建 RSD 再挂"。
+        if mount and not _inproc():
             self.detail["mount"] = await self._auto_mount()
 
         if major is not None and major >= 17:
@@ -61,12 +72,16 @@ class Session:
             if callable(closer):
                 self.detail["rsd_closer"] = type(provider).__name__
                 self.stack.push_async_callback(closer)
+            if mount and _inproc():
+                self.detail["mount"] = await self._auto_mount(provider)
             dvt = await self._enter(DvtProvider(provider))
             self.simulation = await self._enter(LocationSimulation(dvt))
             self.mode = "dvt"
         else:
             from pymobiledevice3.services.simulate_location import DtSimulateLocation
 
+            if mount and _inproc():
+                self.detail["mount"] = await self._auto_mount(self.lockdown)
             self.simulation = await self._enter(DtSimulateLocation(self.lockdown))
             self.mode = "legacy"
 
@@ -99,6 +114,12 @@ class Session:
         self.lockdown = None
         self.mode = None
         self.detail = {}
+        if self._tunnel is not None:
+            try:
+                await self._tunnel.aclose()
+            except Exception:
+                pass
+            self._tunnel = None
 
     # --- 内部 ----------------------------------------------------------
     async def _enter(self, obj):
@@ -150,10 +171,18 @@ class Session:
             return await get_tunneld_device_by_udid(self.udid or udid or "")
         except Exception as exc:
             self.detail["tunneld_error"] = str(exc)[:200]
-        from pymobiledevice3.remote.userspace_tunnel import establish_userspace_rsd
+        from pymobiledevice3.remote import userspace_tunnel as ut
 
         try:
-            return await establish_userspace_rsd(serial=self.udid or udid)
+            if _inproc():
+                # 库自身文档：Embedders should use UserspaceRsdTunnel directly — it is a closeable handle。
+                # establish_userspace_rsd 把隧道存进模块全局（进程退出才关），进程内复用/重连会踩
+                # one-tunnel-per-process，所以这里自己持有句柄，close() 时 aclose()。
+                tunnel_obj = ut.UserspaceRsdTunnel(serial=self.udid or udid)
+                rsd = await tunnel_obj.aopen()
+                self._tunnel = tunnel_obj
+                return rsd
+            return await ut.establish_userspace_rsd(serial=self.udid or udid)
         except Exception as exc:
             raise RuntimeError(
                 "iOS 17+ 需要 RSD 隧道，且自动建立失败(%s)。请先运行: sudo pymobiledevice3 remote tunneld，"
@@ -161,9 +190,20 @@ class Session:
             )
 
     @staticmethod
-    async def _auto_mount() -> str:
-        """best-effort 挂载 Developer Disk Image；失败只记录不阻断。"""
+    async def _auto_mount(provider=None) -> str:
+        """best-effort 挂载 Developer Disk Image；失败只记录不阻断。
+
+        进程内（Windows 打包）没有 pymobiledevice3 命令行，改用库里的 auto_mount；
+        iOS 17+ 传 RSD provider（Cryptex1 DDI 必须经 RSD），老系统传 lockdown。
+        """
         try:
+            if _inproc():
+                if provider is None:
+                    return "auto-mount 跳过：缺少 lockdown/RSD 句柄"
+                from pymobiledevice3.services.mobile_image_mounter import auto_mount
+
+                await auto_mount(provider)
+                return "auto-mount ok（库调用）"
             proc = await asyncio.create_subprocess_exec(
                 sys.executable, "-m", "pymobiledevice3", "mounter", "auto-mount",
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
@@ -178,6 +218,12 @@ class Bridge:
     """把阻塞的 stdin 读取与 asyncio 事件循环桥接起来。"""
 
     def __init__(self) -> None:
+        # Windows 默认 ProactorEventLoop 不支持 add_reader，Wi-Fi(QUIC/aioquic) 会失败；
+        # 进程内模式不再需要 create_subprocess，因此可以安全地换 Selector 事件循环。
+        if _inproc() and os.name == "nt":
+            policy = getattr(asyncio, "WindowsSelectorEventLoopPolicy", None)
+            if policy is not None:
+                asyncio.set_event_loop_policy(policy())
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self._run, name="locpilot-pmd3-loop", daemon=True)
         self.thread.start()

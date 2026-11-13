@@ -1,0 +1,5 @@
+# Windows 外壳运行时依赖（后端本身只用标准库）
+pywebview>=4.4
+# 进程内 worker 需要 pymobiledevice3 作为库（不是命令行）；GPL-3.0，与本项目许可兼容
+# 版本下限按本机验证过的 11.23.0（usbmux.list_devices 为 async、create_using_usbmux 可用）
+pymobiledevice3>=11.23.0

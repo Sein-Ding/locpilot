@@ -13,6 +13,8 @@
 
 **下载**：[⬇️ 最新安装包（Apple Silicon / arm64，ZIP）](../../releases/latest)
 
+> **Windows 版**：源码已就绪（[`windows/`](windows/README.md)：pywebview 原生外壳 + 进程内 pymobiledevice3 + 高德瓦片 UI，与 macOS 版共用同一套后端）。构建需在 Windows 上执行 `powershell -File windows\build.ps1`，详见 [windows/README.md](windows/README.md)。
+
 > ⚠️ **合规提示**：本工具修改的是设备**系统级**定位，仅用于自测、演示与开发调试。请勿用于作弊、绕过风控或任何违反服务条款与法律的用途。
 
 ## 项目介绍

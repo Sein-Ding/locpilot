@@ -1,0 +1,446 @@
+/* LocPilot Windows UI —— 全屏地图 + 右上控件簇 + 左下读数。
+ * 视觉语言沿用 macOS 版：浮层控件（玻璃材质）、胶囊分组、同心圆角、系统色。
+ * 布局全部相对视口自适应（clamp + flex），不依赖固定窗口尺寸；窗口可任意缩放。
+ * 离线：本文件与所有 JS/字体均为本地资源，不引用任何 CDN。
+ */
+:root {
+  --label: rgba(255, 255, 255, 0.96);
+  --label-2: rgba(255, 255, 255, 0.66);
+  --accent: #0a84ff;
+  --green: #30d158;
+  --yellow: #ffd60a;
+  --red: #ff453a;
+  --separator: rgba(255, 255, 255, 0.14);
+  --map-bg: #e8e9ea;
+  --ink: #1c1c1e;
+  --readout-ink: rgba(28, 28, 30, 0.62);
+  --readout-shadow: rgba(255, 255, 255, 0.85);
+  --glass-panel: rgba(28, 28, 30, 0.58);
+  --glass-edge: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 12px 34px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --glass-blur: blur(34px) saturate(190%);
+  --radius-lg: 14px;
+  --radius-md: 10px;
+
+  /* 控件尺寸随窗口缩放：小窗口不挤占地图，大窗口不显得袖珍 */
+  --ctrl-size: clamp(38px, 3.2vw, 42px);
+  --ctrl-btn-h: clamp(32px, 2.7vw, 38px);
+  --ctrl-icon: clamp(14px, 1.2vw, 16px);
+  --edge: clamp(10px, 1.1vw, 16px);
+  --gap: clamp(7px, 0.7vw, 10px);
+  --readout-size: clamp(10px, 0.85vw, 11px);
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei",
+          "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "Consolas", "SF Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--map-bg);
+}
+body {
+  color: var(--label);
+  font: 400 13px/1.45 var(--font);
+  -webkit-font-smoothing: antialiased;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#app { position: fixed; inset: 0; overflow: hidden; }
+#map { position: absolute; inset: 0; background: var(--map-bg); }
+
+.icon {
+  width: var(--ctrl-icon);
+  height: var(--ctrl-icon);
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon.fill { fill: currentColor; stroke: none; }
+
+/* ---------- 玻璃基元 ---------- */
+.glass {
+  background: var(--glass-panel);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 0.5px solid var(--glass-edge);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+}
+
+/* ---------- 右上控件簇 ---------- */
+.controls {
+  position: absolute;
+  top: var(--edge);
+  right: var(--edge);
+  z-index: 520;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--gap);
+}
+
+.device-btn {
+  position: relative;
+  width: var(--ctrl-size);
+  height: var(--ctrl-size);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--status-color, var(--yellow));
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.18s ease, box-shadow 0.2s ease;
+}
+.device-btn:hover { border-color: rgba(255, 255, 255, 0.34); }
+.device-btn:active { transform: scale(0.94); }
+.device-btn .icon {
+  filter: drop-shadow(0 0 5px var(--status-color, var(--yellow)));
+  transition: color 0.2s ease;
+}
+.device-dot {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-color, var(--yellow));
+  box-shadow: 0 0 7px var(--status-color, var(--yellow));
+}
+.device-btn[data-status="green"] { --status-color: var(--green); }
+.device-btn[data-status="yellow"] { --status-color: var(--yellow); }
+.device-btn[data-status="red"] { --status-color: var(--red); }
+
+.capsule {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+.capsule button {
+  width: var(--ctrl-size);
+  height: var(--ctrl-btn-h);
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--label-2);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.capsule button:hover { background: rgba(255, 255, 255, 0.14); color: var(--label); }
+.capsule button.dimmed { opacity: 0.4; }
+.capsule button.active { color: var(--accent); }
+.capsule button.danger { color: rgba(255, 105, 97, 0.92); }
+.capsule button.danger:hover { background: rgba(255, 69, 58, 0.18); color: var(--red); }
+.ctrl-sep { height: 1px; margin: 0 6px; background: var(--separator); }
+
+/* ---------- 设备弹框 ---------- */
+.popover {
+  position: absolute;
+  top: calc(var(--ctrl-size) + 10px);
+  right: 0;
+  z-index: 530;
+  width: min(236px, calc(100vw - 2 * var(--edge)));
+  padding: 10px 12px;
+  animation: pop 0.16s ease-out;
+}
+.popover-row { display: flex; align-items: center; gap: 8px; }
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--status-color, var(--yellow));
+  box-shadow: 0 0 6px var(--status-color, var(--yellow));
+}
+.popover-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label);
+}
+.popover-action {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 0.5px solid var(--glass-edge);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--label);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.popover-action:hover { background: rgba(255, 255, 255, 0.24); }
+.popover-action[disabled] { opacity: 0.5; cursor: default; }
+.popover-error {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 180, 174, 0.95);
+  word-break: break-word;
+}
+.spinner {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-top-color: var(--label);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- 左下角读数（与「高德地图」归属同一行） ---------- */
+#readout-row {
+  position: absolute;
+  left: var(--edge);
+  bottom: calc(var(--edge) * 0.55);
+  z-index: 450;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 2 * var(--edge));
+  pointer-events: none;
+  font-size: var(--readout-size);
+  line-height: 1.2;
+  color: var(--readout-ink);
+  text-shadow: 0 1px 3px var(--readout-shadow);
+  white-space: nowrap;
+}
+#attribution { flex: 0 0 auto; }
+#readout {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- 顶部提示 ---------- */
+@keyframes pop { from { opacity: 0; transform: translateY(4px) scale(0.97); } to { opacity: 1; transform: none; } }
+#toast {
+  position: absolute;
+  top: calc(var(--edge) + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  max-width: min(70vw, 620px);
+  padding: 9px 16px;
+  background: rgba(38, 38, 42, 0.92);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 0.5px solid var(--glass-edge);
+  border-radius: 999px;
+  box-shadow: var(--glass-shadow);
+  color: var(--label);
+  font-size: 12.5px;
+  animation: pop 0.16s ease-out;
+}
+#toast.err { color: #ffb4ae; }
+.map-error {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 24px;
+  z-index: 400;
+  max-width: 80vw;
+  background: rgba(255, 69, 58, 0.92);
+  border-radius: var(--radius-lg);
+  padding: 9px 14px;
+  color: #fff;
+  font-size: 12px;
+}
+
+/* ---------- 键盘聚焦环（无障碍） ---------- */
+button:focus-visible,
+.popover-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Leaflet ---------- */
+.leaflet-container {
+  background: var(--map-bg);
+  font-family: var(--font);
+}
+.leaflet-control-attribution { display: none; }   /* 归属由 #readout-row 自绘（与读数同一行） */
+.leaflet-bar { display: none; }
+.lp-pin-icon { background: transparent; border: 0; }
+
+/* ---------- 定位大头针（结构对齐 macOS 版 MapLocationPin） ----------
+ * 针尖 = 组件底边中心（divIcon iconAnchor 22,52），所有缩放/旋转都以针尖为轴。
+ * 地面阴影、目标圆环、波纹都与针体分层，互不干扰。
+ */
+.lp-pin {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 44px;
+  height: 52px;
+  pointer-events: none;
+  --pin-color: #ff3b30;
+  --pin-morph: 0.30s;
+  --ring-duration: 0.12s;
+  --ripple-duration: 0.40s;
+  --check-duration: 0.22s;
+}
+.lp-pin-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 30px;
+  height: 8px;
+  margin-left: -15px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.26);
+  filter: blur(6px);
+  transform-origin: center;
+}
+.lp-pin-ring {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  margin-bottom: -13px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity var(--ring-duration) ease-out, transform var(--ring-duration) ease-out;
+}
+.lp-pin.is-dropping .lp-pin-ring { opacity: 0.4; transform: scale(1); }
+.lp-pin-ripple {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  margin-bottom: -15px;
+  border-radius: 50%;
+  border: 1.8px solid currentColor;
+  color: rgba(242, 242, 247, 0.95);
+  opacity: 0;
+  transform: scale(0.5);
+}
+.lp-pin-ripple.is-success { color: #34c759; }
+.lp-pin-ripple.is-error { color: #ff3b30; }
+.lp-pin-ripple.is-rippling { animation: lp-ripple var(--ripple-duration) ease-out; }
+@keyframes lp-ripple {
+  0% { opacity: 0.35; transform: scale(0.5); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+.lp-pin-fall,
+.lp-pin-shake,
+.lp-pin-body { position: absolute; inset: 0; }
+.lp-pin-shake { transform-origin: 50% 100%; }
+.lp-pin-body {
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+  will-change: transform;
+}
+.lp-pin-shape { position: absolute; inset: 0; display: block; }
+.lp-pin.is-success { --pin-color: #34c759; }
+.lp-pin.is-error { --pin-color: #ff3b30; }
+.lp-pin-head,
+.lp-pin-tail { fill: var(--pin-color); transition: fill var(--pin-morph) ease-in-out; }
+.lp-pin-check {
+  position: absolute;
+  left: 50%;
+  top: 19px;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  margin-top: -9px;
+  overflow: visible;
+  opacity: 0;
+}
+.lp-pin.is-check .lp-pin-check { opacity: 1; }
+.lp-pin-check path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset var(--check-duration) ease-out;
+}
+.lp-pin.is-check .lp-pin-check path { stroke-dashoffset: 0; }
+.lp-pin-bang {
+  position: absolute;
+  left: 50%;
+  top: 19px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5px;
+  opacity: 0;
+  transition: opacity 0.16s ease-out;
+}
+.lp-pin.is-error .lp-pin-bang { opacity: 1; }
+.lp-pin-bang i { display: block; background: #fff; border-radius: 999px; }
+.lp-pin-bang i:first-child { width: 4.5px; height: 9.5px; }
+.lp-pin-bang i:last-child { width: 4.5px; height: 4.5px; }
+
+/* ---------- 浅色外观 ---------- */
+@media (prefers-color-scheme: light) {
+  :root {
+    --label: rgba(0, 0, 0, 0.92);
+    --label-2: rgba(0, 0, 0, 0.6);
+    --separator: rgba(0, 0, 0, 0.12);
+    --glass-panel: rgba(255, 255, 255, 0.72);
+    --glass-edge: rgba(255, 255, 255, 0.8);
+    --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  }
+  .device-btn:hover { border-color: rgba(0, 0, 0, 0.2); }
+  .capsule button:hover { background: rgba(0, 0, 0, 0.08); }
+  .popover-action { background: rgba(0, 0, 0, 0.08); }
+  .popover-action:hover { background: rgba(0, 0, 0, 0.14); }
+  .popover-error { color: #b3261e; }
+  .spinner { border-color: rgba(0, 0, 0, 0.18); border-top-color: var(--label); }
+  #toast { background: rgba(255, 255, 255, 0.92); }
+  #toast.err { color: #b3261e; }
+}
+
+/* ---------- 窗口变小时的紧凑布局（自适应，不是固定像素） ---------- */
+@media (max-width: 560px) {
+  :root {
+    --ctrl-size: 36px;
+    --ctrl-btn-h: 32px;
+    --ctrl-icon: 14px;
+    --edge: 8px;
+    --gap: 6px;
+    --readout-size: 10px;
+  }
+  .popover { width: min(212px, calc(100vw - 16px)); }
+}
+@media (max-height: 460px) {
+  :root { --gap: 5px; --ctrl-btn-h: 30px; --ctrl-size: 34px; }
+}
+
+/* ---------- 尊重系统「减弱动态效果」 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

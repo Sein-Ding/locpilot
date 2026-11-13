@@ -13,8 +13,10 @@ import json
 import os
 import queue
 import shutil
+import asyncio
 import subprocess
 import sys
+import threading
 import threading
 import time
 from collections import deque
@@ -120,6 +122,70 @@ class _WorkerProc:
             self.proc = None
 
 
+
+def inproc_enabled() -> bool:
+    """是否让 worker 跑在宿主进程内。
+
+    PyInstaller 冻结后 sys.executable 就是 ApplPilot.exe 自己，再按
+    [python, pmd3_worker.py] 起子进程只会把自身当解释器执行（Windows 上直接失败）。
+    因此冻结环境或显式 LOCPILOT_PMD3_INPROC=1 时，直接复用 worker 的
+    Session/Bridge，在宿主进程里跑 asyncio 循环。
+    """
+    if os.environ.get("LOCPILOT_PMD3_INPROC") == "1":
+        return True
+    return bool(getattr(sys, "frozen", False)) and os.name == "nt"
+
+
+class _InProcWorker:
+    """进程内 worker：对外接口与 _WorkerProc 完全一致（start/request/alive/stop/stderr_tail）。
+
+    协议与子进程版一字不差，复用 pmd3_worker.handle()，因此两边行为可对照。
+    """
+
+    def __init__(self) -> None:
+        self._bridge = None
+        self._session = None
+        self._lock = threading.Lock()
+
+    def start(self) -> None:
+        from .pmd3_worker import Bridge, Session
+
+        self._bridge = Bridge()
+        self._session = Session()
+
+    def alive(self) -> bool:
+        return self._bridge is not None and self._session is not None
+
+    def stderr_tail(self, limit: int = 400) -> str:  # 进程内没有子进程 stderr
+        return ""
+
+    def request(self, payload: dict, timeout: float = 30.0) -> dict:
+        from .pmd3_worker import handle
+
+        if not self.alive():
+            raise EngineUnavailable("进程内 worker 尚未启动")
+        message = dict(payload)
+        message.setdefault("timeout", timeout)
+        with self._lock:                    # asyncio 循环是单线程的，串行化调用
+            return handle(self._bridge, self._session, message)
+
+    def stop(self) -> None:
+        bridge, session = self._bridge, self._session
+        self._bridge = self._session = None
+        if bridge is None:
+            return
+        try:
+            from .pmd3_worker import handle
+
+            handle(bridge, session, {"cmd": "close", "timeout": 20.0})
+        except Exception:
+            pass
+        try:
+            bridge.shutdown()
+        except Exception:
+            pass
+
+
 class PyMobileDevice3Engine(Engine):
     name = "pymobiledevice3"
     label = "pymobiledevice3（推荐，支持 iOS 17+）"
@@ -190,6 +256,12 @@ class PyMobileDevice3Engine(Engine):
         return shutil.which("python3") or sys.executable
 
     def availability(self):
+        if inproc_enabled():
+            try:
+                import pymobiledevice3  # noqa: F401
+            except Exception as exc:                    # 冻结包里没收集到依赖
+                return False, "进程内 worker 不可用（pymobiledevice3 未打包）: %s" % (exc,)
+            return True, "进程内 worker（不依赖 pymobiledevice3 命令行）"
         binary = self.binary()
         if not binary:
             return False, "未找到 pymobiledevice3；请运行 scripts/setup-engine.sh 或 pip install pymobiledevice3"
@@ -197,6 +269,61 @@ class PyMobileDevice3Engine(Engine):
         return True, "CLI=%s；worker python=%s" % (binary, python or "缺失（将使用 CLI 兜底）")
 
     # --- 设备枚举 ------------------------------------------------------
+    def _list_devices_inproc(self) -> List[DeviceInfo]:
+        """冻结环境没有 pymobiledevice3 命令行，直接用库里的 usbmux 枚举。"""
+        try:
+            from pymobiledevice3 import usbmux
+        except Exception as exc:
+            raise EngineUnavailable("pymobiledevice3 未打包: %s" % (exc,))
+        try:
+            payload = usbmux.list_devices()
+            if asyncio.iscoroutine(payload):
+                payload = asyncio.run(payload)
+        except Exception as exc:
+            raise EngineError("进程内枚举设备失败: %s" % (exc,))
+        devices: List[DeviceInfo] = []
+        for item in payload or []:
+            udid = getattr(item, "serial", None) or getattr(item, "udid", None)
+            if not udid:
+                continue
+            connection = getattr(item, "connection_type", None)
+            devices.append(
+                DeviceInfo(
+                    udid=udid,
+                    name=None,
+                    product_type=getattr(item, "product_type", None),
+                    ios_version=None,
+                    connection=str(getattr(connection, "name", connection) or "usb").lower(),
+                    engine=self.name,
+                )
+            )
+        return devices
+
+    def _enrich_inproc_device(self, info: DeviceInfo, detail: dict) -> DeviceInfo:
+        """进程内路径下补上 iOS 版本与设备名（usbmux 层没有这两项）。"""
+        version = detail.get("product_version") if isinstance(detail, dict) else None
+        if version:
+            info.ios_version = str(version)
+        try:
+            from pymobiledevice3.lockdown import create_using_usbmux
+
+            async def read_name():
+                lockdown = await create_using_usbmux(serial=info.udid, autopair=False)
+                return (
+                    getattr(lockdown, "display_name", None)
+                    or getattr(lockdown, "device_name", None),
+                    getattr(lockdown, "product_version", None),
+                )
+
+            name, product_version = asyncio.run(read_name())
+            if name:
+                info.name = name
+            if product_version and not info.ios_version:
+                info.ios_version = str(product_version)
+        except Exception:
+            pass                                    # 补全失败不影响主链路
+        return info
+
     def _cli(self, args: List[str], timeout: float = 30.0) -> CommandResult:
         binary = self.binary()
         if not binary:
@@ -220,6 +347,8 @@ class PyMobileDevice3Engine(Engine):
         raise EngineError("pymobiledevice3 %s 失败: %s" % (" ".join(args), last.tail()))
 
     def list_devices(self) -> List[DeviceInfo]:
+        if inproc_enabled():
+            return self._list_devices_inproc()
         result = self._cli(["usbmux", "list"], timeout=40.0)
         payload = None
         for chunk in (result.stdout or "").strip().split("\n"):
@@ -275,6 +404,31 @@ class PyMobileDevice3Engine(Engine):
         if target is None:
             raise EngineError("未找到指定设备: %s" % (udid,))
         self.device = target
+        if inproc_enabled():
+            self._worker = _InProcWorker()
+            self._worker.start()
+            try:
+                detail = self._worker.request(
+                    {
+                        "cmd": "open",
+                        "udid": target.udid,
+                        "mount": bool(self.settings.get("auto_mount", True)),
+                        "rsd": self.settings.get("rsd"),
+                        "tunnel": self.settings.get("tunnel"),
+                        "timeout": float(self.settings.get("open_timeout", 180.0)),
+                    },
+                    timeout=float(self.settings.get("open_timeout", 180.0)) + 10.0,
+                )
+            except EngineError as exc:
+                self._worker.stop()
+                self._worker = None
+                raise self._explain(exc, target)
+            self.mode = "inproc:" + str(detail.get("mode") or "?")
+            self.tunnel_hint = str(detail.get("mount") or "")
+            self.device = self._enrich_inproc_device(target, detail)
+            self.opened = True
+            self.error = None
+            return self.device
         python = self.worker_python()
         use_worker = bool(self.settings.get("worker", True)) and bool(python)
         if use_worker:
@@ -397,7 +551,9 @@ class PyMobileDevice3Engine(Engine):
         data.update({
             "mode": self.mode,
             "binary": self.binary(),
-            "worker_python": self.worker_python(),
+            "worker": "inproc" if isinstance(self._worker, _InProcWorker) else "subprocess",
+            "inproc_enabled": inproc_enabled(),
+            "worker_python": None if isinstance(self._worker, _InProcWorker) else self.worker_python(),
             "worker_stderr": self._worker.stderr_tail() if self._worker else "",
             "home_override": self._home_override or self.settings.get("pmd3_home") or os.environ.get("LOCPILOT_PMD3_HOME"),
             "home_fallback_used": self.home_fallback_used,
